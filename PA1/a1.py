@@ -22,18 +22,24 @@ if cap.isOpened()==False:
 total_frame_num = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
 #print (total_duration)
 fps = int(cap.get(cv2.cv.CV_CAP_PROP_FPS))
+
 codec = int(cap.get(cv2.cv.CV_CAP_PROP_FOURCC))
+
 #print(fps)
 
 ####user input#######
 start_frame = int(raw_input("Please tell me the start frame (0-based): "))
+
 end_frame = int(raw_input("Please tell me the last frame (0-based): "))
+
 startX = int(raw_input("what's the object's start x: "))
 startY = int(raw_input("what's the object's start y: "))
 height = int(raw_input("what is the object's height: "))
 width = int(raw_input("what is the object's width: "))
+
 speed_in_x= float(raw_input("what's the velosity in x axis: ")) #can be double
 speed_in_y = float(raw_input("what's the velosity in y axis: ")) #can be double
+
 output_ht = int(raw_input("what is the output video's height: "))
 output_wd = int(raw_input("what is the output video's width: "))
 
@@ -52,12 +58,14 @@ if out.isOpened() == False:
 
 cap.set(1, start_frame)
 for i in range (start_frame,end_frame + 1):
+
 	currX = float(startX + speed_in_x * (i - start_frame) ) #Better this way if speed_in_x is a double
 	currY = float(startY + speed_in_y * (i - start_frame) ) 
 	ret, frame = cap.read()
 	#a = np.matrix('1 2; 3 4')
 	pts1 = np.float32([[currX, currY],[currX, currY+height-1],[currX+width-1, currY]])
 	pts2 = np.float32([[0,0],[0,output_ht-1],[output_wd-1,0]])
+
 	M = cv2.getAffineTransform(pts1,pts2)
 	#cv2.rectangle(frame, (startX, startY), (startX + width, startY+ height), (0,0,255),2)
 	dst = cv2.warpAffine(frame, M, (output_wd,output_ht))
