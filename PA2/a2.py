@@ -4,18 +4,17 @@ import cv2
 import os
 
 #####input and output file directories and names#####
-if len(sys.argv) != 3:
-	print "Usage: python a1.py <in_file> <out_file>"
+if len(sys.argv) != 2:
+	print "Usage: python a1.py <in_file>"
 	sys.exit()
 in_file=sys.argv[1]
-out_file=sys.argv[2]
+#out_file=sys.argv[2]
 
-if os.path.isfile(out_file):
-	os.remove(out_file)
+#if os.path.isfile(out_file):
+#	os.remove(out_file)
 
 #####user input#####
-start_frame = int(raw_input("Please tell me the start frame (0-based): "))
-end_frame = int(raw_input("Please tell me the last frame (0-based): "))
+
 
 #startX = int(raw_input("what's the object's start x: "))
 #startY = int(raw_input("what's the object's start y: "))
@@ -36,28 +35,55 @@ if cap.isOpened()==False:
 	sys.exit()
 
 total_frame_num = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
-fps = int(cap.get(cv2.cv.CV_CAP_PROP_FPS))
-codec = int(cap.get(cv2.cv.CV_CAP_PROP_FOURCC))
 
+coordinates = []
 
 
 #####processing video#####
-for i in range (start_frame, end_frame + 1):
+for i in range (0, total_frame_num):
 	ret, frame = cap.read()
 	gray= cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
 	surf = cv2.SURF(20000)
 	kp = surf.detect(gray,None)
 	
-	x = kp[0].pt[0];
-	y = kp[0].pt[1];
-	size = kp[0].size;
-	print len(kp)
-	print size
+	x = 0;
+	y = 0;
+	total_kp = len(kp)
+	diameter = 0;
+	count =0;
+	for a in range(0,total_kp-1):
+		x = int(kp[a].pt[0]);
+		y = int(kp[a].pt[1]);
+		#print "check:", a
+		#print x
+		#print y
+		
+		if (x,y) in coordinates:
+			#print "(x,y already in coordinates)"
+			continue
+		else:
+			if count<30:
+				coordinates.append((x,y))
+				diameter=kp[a].size
+				count=count+1
+				break
+			else:
+				coordinates.pop(0)
+				diameter=kp[a].size
+				coordinates.append((x,y))
+				break
 
-	tl_x=int(x-(size/2))
-	tl_y=int(y-(size/2))
-	br_x=int(x+(size/2))
-	br_y=int(y+(size/2))
+	#print "coordinate len: ",len(coordinates)
+	print "final coordinate :",x,y
+	
+
+	#print len(kp)
+	#print size
+
+	tl_x=int(x-(diameter/2))
+	tl_y=int(y-(diameter/2))
+	br_x=int(x+(diameter/2))
+	br_y=int(y+(diameter/2))
 
 	cv2.rectangle(frame, (tl_x, tl_y), (br_x, br_y), (0,0,255),2)
 
