@@ -25,6 +25,7 @@ if len(sys.argv) != 2:
 in_file=sys.argv[1]
 
 #####read video information#####
+
 cap = cv2.VideoCapture(in_file)
 if cap.isOpened()==False:
 	print("Can not open the video")
@@ -92,6 +93,7 @@ for i in range (0, total_frame_num):
 	cv2.rectangle(frame, (tl_x, tl_y), (br_x, br_y), (0,0,255),2)
 
 	filename = str(i)+".png"
+
 	cv2.imwrite(filename,frame)
 	if cv2.waitKey(10) & 0xFF == ord('q'):
 		break
