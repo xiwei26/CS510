@@ -33,6 +33,9 @@ if cap.isOpened()==False:
 total_frame_num = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
 
 #####processing video#####
+coordinatesList = []
+diameterList = []
+
 for i in range (0, total_frame_num):
 
 	ret, frame = cap.read()
@@ -45,12 +48,7 @@ for i in range (0, total_frame_num):
 	total_kp = len(kp)
 	diameter = 0
 
-	# reset keypoint list every second
-	if(i % 30 == 0):
-		coordinatesList = []
-		diameterList = []
-
-	for a in range(0,total_kp-1):
+	for a in range(0,total_kp):
 		x = int(kp[a].pt[0])
 		y = int(kp[a].pt[1])
 		diameter = kp[a].size
@@ -59,10 +57,16 @@ for i in range (0, total_frame_num):
 		if (x,y) not in coordinatesList:
 			# check if at the same scale
 			if diameter not in diameterList:
-				coordinatesList.append((x,y))
-				diameterList.append(diameter)
-				break
-			
+				if len(coordinatesList) < 30:
+					coordinatesList.append((x,y))
+					diameterList.append(diameter)
+					break
+				else:
+					coordinatesList.pop(0)
+					diameterList.pop(0)
+					coordinatesList.append((x,y))
+					diameterList.append(diameter)
+					break
 			else:
 				# get index of (x,y) which at the same scale
 				overlap_flag = False
@@ -72,9 +76,16 @@ for i in range (0, total_frame_num):
 							overlap_flag = True
 							break
 				if overlap_flag == False:
-					coordinatesList.append((x,y))
-					diameterList.append(diameter)
-					break
+					if len(coordinatesList) < 30:
+						coordinatesList.append((x,y))
+						diameterList.append(diameter)
+						break
+					else:
+						coordinatesList.pop(0)
+						diameterList.pop(0)
+						coordinatesList.append((x,y))
+						diameterList.append(diameter)
+						break
 
 
 	#print "coordinate len: ",len(coordinates)
