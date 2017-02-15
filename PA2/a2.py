@@ -4,12 +4,13 @@ import cv2
 import os
 
 #return true if overlaps > 50%
-def checkOverlap(x1,y1,x2,y2,radius):
-	dx = min(x1+radius, x2+radius) - max(x1-radius, x2-radius)
-	dy = min(y1+radius, y2+radius) - max(y1-radius, y2-radius)
+# x1 y1 -> last frame keypoint
+def checkOverlap(x1,y1,r1,x2,y2,r2):
+	dx = min(x1+r1, x2+r2) - max(x1-r1, x2-r2)
+	dy = min(y1+r1, y2+r2) - max(y1-r1, y2-r2)
 	if (dx>=0) and (dy>=0):
-		area = 4*radius*radius
-		overlap_rate = dx*dy/float(area)
+		area = float(4*r1*r1)
+		overlap_rate = dx*dy/area
 		if(overlap_rate > 0.5):
 			return True
 		else:
@@ -34,6 +35,8 @@ if cap.isOpened()==False:
 total_frame_num = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
 
 #####processing video#####
+coordinatesList = []
+
 for i in range (0, total_frame_num):
 
 	ret, frame = cap.read()
@@ -46,37 +49,28 @@ for i in range (0, total_frame_num):
 	total_kp = len(kp)
 	diameter = 0
 
-	# reset keypoint list every second
-	if(i % 30 == 0):
-		coordinatesList = []
-		diameterList = []
-
-	for a in range(0,total_kp-1):
+	for a in range(0,total_kp):
 		x = int(kp[a].pt[0])
 		y = int(kp[a].pt[1])
 		diameter = kp[a].size
 		
 		# check if (x,y) already in coordinates list
-		if (x,y) not in coordinatesList:
-			# check if at the same scale
-			if diameter not in diameterList:
-				coordinatesList.append((x,y))
-				diameterList.append(diameter)
-				break
-			
+		if (x,y,diameter) not in coordinatesList:
+			for b in coordinatesList:
+				if checkOverlap(b[0],b[1],b[2]/2,x,y,diameter/2) == True:
+					break
 			else:
-				# get index of (x,y) which at the same scale
-				overlap_flag = False
-				for b in range(len(diameterList)):
-					if diameterList[b] == diameter:
-						if checkOverlap(coordinatesList[b][0],coordinatesList[b][1],x,y,diameter/2) == True:
-							overlap_flag = True
-							break
-				if overlap_flag == False:
-					coordinatesList.append((x,y))
-					diameterList.append(diameter)
+				if len(coordinatesList) < 30:
+					coordinatesList.append((x,y,diameter))
+					break
+				else:
+					coordinatesList.pop(0)
+					coordinatesList.append((x,y,diameter))
 					break
 
+
+			# check if at the same scale
+			
 
 	#print "coordinate len: ",len(coordinates)
 	print "Frame#",i,",keypoint:",x,y,diameter
