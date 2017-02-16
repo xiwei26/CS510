@@ -81,13 +81,15 @@ if cap.isOpened()==False:
 	print("Can not open the video")
 	sys.exit()
 
-#total_frame_num = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
-total_frame_num = 50
+total_frame_num = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
+#total_frame_num = 50
 #####processing video#####
 coordinatesList = []
 hessian = 5000
 
 if not isGaussian:
+	sum_sz = 0
+	large_sz = 0
 	for i in range (total_frame_num):
 
 		ret, frame = cap.read()
@@ -97,9 +99,14 @@ if not isGaussian:
 		print "Frame#",i,",keypoint:", coordinatesList[-1]
 		#print total_kp
 		writeKP(frame, coordinatesList[-1][0], coordinatesList[-1][1], coordinatesList[-1][2], './result/',i)
+		sz = coordinatesList[-1][2]
+		sum_sz += sz
+		large_sz = sz if sz > large_sz else large_sz 
 
 		if cv2.waitKey(10) & 0xFF == ord('q'):
 			break
+	print sum_sz/total_frame_num
+	print large_sz
 else:
 	avg_kp_size = []
 	largest_kp_size = []
