@@ -17,6 +17,26 @@ def writeKP(frame, x, y, diameter, folder, img_seq):
 	filename = folder + str(img_seq) +".png"
 	cv2.imwrite(filename,frame)
 
+def writeKP_resize(frame, x, y, diameter, folder, img_seq, M_enlarge):
+	#### Write figures with key points labels to files ####
+
+	#### Box coordinates ####
+	tl_x=int(x-(diameter/2))
+	tl_y=int(y-(diameter/2))
+	br_x=int(x+(diameter/2))
+	br_y=int(y+(diameter/2))
+
+
+	top_left_enlarge = np.array(np.dot(M_enlarge, np.array([[tl_x],[tl_y],[1]])))
+	bottom_right_enlarge = np.array(np.dot(M_enlarge, np.array([[br_x],[br_y],[1]])))
+	top_left_enlarge.astype(int)
+	bottom_right_enlarge.astype(int)
+	print top_left_enlarge.flatten()
+	cv2.rectangle(frame, tuple(top_left_enlarge.astype(int).flatten()), tuple(bottom_right_enlarge.astype(int).flatten()), (0,0,255),2)
+
+	filename = folder + str(img_seq) +".png"
+	cv2.imwrite(filename,frame)
+
 def checkOverlap(x1,y1,r1,x2,y2,r2):
 	####return true if overlaps > 50%
 	#### x1 y1 -> last frame keypoint
@@ -73,9 +93,6 @@ if len(sys.argv) != 2:
 	sys.exit()
 in_file=sys.argv[1]
 
-isGaussian = raw_input("Are you going to run gaussian variation analysis (y or n): ")
-isGaussian = True if isGaussian == 'y' else False
-
 #####read video information#####
 
 cap = cv2.VideoCapture(in_file)
@@ -84,59 +101,35 @@ if cap.isOpened()==False:
 	sys.exit()
 
 total_frame_num = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
-#total_frame_num = 50
+#total_frame_num = 1
 #####processing video#####
 coordinatesList = []
 hessian = 5000
 
-if not isGaussian:
-	sum_sz = 0
-	large_sz = 0
-	for i in range (total_frame_num):
+for i in range (total_frame_num):
 
-		ret, frame = cap.read()
-		total_kp, hessian = kp_detect(frame, coordinatesList, hessian)
+	ret, frame = cap.read()
 
-		#print "coordinate len: ",len(coordinates)
-		print "Frame#",i,",keypoint:", coordinatesList[-1]
-		#print total_kp
-		writeKP(frame, coordinatesList[-1][0], coordinatesList[-1][1], coordinatesList[-1][2], './result/',i)
-		sz = coordinatesList[-1][2]
-		sum_sz += sz
-		large_sz = sz if sz > large_sz else large_sz 
+	### Shrink image
+	rows, cols, ch = frame.shape
+	pts1 = np.float32([[0,0], [0,rows-1], [cols-1, 0]])
+	pts2 = np.float32([[0,0], [0,(rows-1)//2], [(cols-1)//2, 0]])
+	M_shrink = cv2.getAffineTransform(pts1, pts2)
+	M_enlarge = cv2.getAffineTransform(pts2, pts1)
+	frame_shrink = cv2. warpAffine(frame, M_shrink, (cols, rows))
+	#print M_shrink
 
-		if cv2.waitKey(10) & 0xFF == ord('q'):
-			break
-	print sum_sz/total_frame_num
-	print large_sz
-else:
-	avg_kp_size = []
-	largest_kp_size = []
-	for ksize in [15]:#range(3, 11, 2):#[11]: #
-		hessian = 5000
-		print 'ksize is %d' %ksize
-		isWriting = raw_input("Are you going to write images labeled with key points (y or n): ")
-		isWriting = True if isWriting == 'y' else False
-		sum_sz = 0 ### for calculating the average key point size
-		large_sz = 0 ### for calculating the largest key point size
+	total_kp, hessian = kp_detect(frame_shrink, coordinatesList, hessian)
 
-		for i in range (total_frame_num):
-			ret, frame = cap.read()
-			frame_gaus = cv2.GaussianBlur(frame, (ksize, ksize), 0)
-			(total_kp, hessian) = kp_detect(frame_gaus, coordinatesList, hessian)
-			if isWriting:
-				print "Frame#",i,",keypoint:", coordinatesList[-1]
-				writeKP(frame, coordinatesList[-1][0], coordinatesList[-1][1], coordinatesList[-1][2], './result_var/',i)
-				print total_kp
-			sz = coordinatesList[-1][2]
-			sum_sz += sz
-			large_sz = sz if sz > large_sz else large_sz
+	#print "coordinate len: ",len(coordinates)
+	print "Frame#",i,",keypoint:", coordinatesList[-1]
+	#print total_kp
+	writeKP_resize(frame, coordinatesList[-1][0], coordinatesList[-1][1], coordinatesList[-1][2], './result/',i, M_enlarge)
 
-		avg_kp_size.append(sum_sz / total_frame_num)
-		largest_kp_size.append(large_sz)
-	print 'ksize: ', [range(3, ksize+1, 2)] 
-	print 'average', avg_kp_size
-	print 'largest', largest_kp_size
+	#writeKP(frame, coordinatesList[-1][0], coordinatesList[-1][1], coordinatesList[-1][2], './result/',i)
+
+	if cv2.waitKey(10) & 0xFF == ord('q'):
+		break
 
 cap.release()
 cv2.destroyAllWindows()
