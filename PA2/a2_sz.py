@@ -27,12 +27,10 @@ def writeKP_resize(frame, x, y, diameter, folder, img_seq, M_enlarge):
 	br_y=int(y+(diameter/2))
 
 
-	top_left_enlarge = np.array(np.dot(M_enlarge, np.array([[tl_x],[tl_y],[1]])))
-	bottom_right_enlarge = np.array(np.dot(M_enlarge, np.array([[br_x],[br_y],[1]])))
-	top_left_enlarge.astype(int)
-	bottom_right_enlarge.astype(int)
-	print top_left_enlarge.flatten()
-	cv2.rectangle(frame, tuple(top_left_enlarge.astype(int).flatten()), tuple(bottom_right_enlarge.astype(int).flatten()), (0,0,255),2)
+	top_left_enlarge = np.dot(M_enlarge, np.array([[tl_x],[tl_y],[1]]))
+	bottom_right_enlarge = np.dot(M_enlarge, np.array([[br_x],[br_y],[1]]))
+	cv2.rectangle(frame, tuple(top_left_enlarge.astype(int).flatten()),
+				 tuple(bottom_right_enlarge.astype(int).flatten()), (0,0,255),2)
 
 	filename = folder + str(img_seq) +".png"
 	cv2.imwrite(filename,frame)
@@ -100,8 +98,8 @@ if cap.isOpened()==False:
 	print("Can not open the video")
 	sys.exit()
 
-total_frame_num = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
-#total_frame_num = 1
+#total_frame_num = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
+total_frame_num = 50
 #####processing video#####
 coordinatesList = []
 hessian = 5000

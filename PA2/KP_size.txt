@@ -1,0 +1,19 @@
+No Gaussian Blur
+No Resizing
+Average attention window size is:  18.6181818182
+Largest attention window size is:  30.0
+
+Gaussian Blur
+No Resizing
+Average attention window size is:  40.45
+Largest attention window size is:  127.0
+
+No Gaussian Blur
+Resize image
+Average attention window size is:  38.6
+Largest attention window size is:  66.0
+
+Gaussian Blur
+Resize image
+Average attention window size is:  50.4181818182
+Largest attention window size is:  328.0

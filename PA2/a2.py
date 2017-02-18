@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 import os
 
-def writeKP(frame, x, y, diameter, folder, img_seq):
+def writeKP(frame, x, y, diameter, folder, img_seq, M_enlarge):
 	#### Write figures with key points labels to files ####
 
 	#### Box coordinates ####
@@ -12,7 +12,13 @@ def writeKP(frame, x, y, diameter, folder, img_seq):
 	br_x=int(x+(diameter/2))
 	br_y=int(y+(diameter/2))
 
-	cv2.rectangle(frame, (tl_x, tl_y), (br_x, br_y), (0,0,255),2)
+	if M_enlarge.size == 1:
+		cv2.rectangle(frame, (tl_x, tl_y), (br_x, br_y), (0,0,255),2)
+	else:
+		top_left_enlarge = np.dot(M_enlarge, np.array([[tl_x],[tl_y],[1]]))
+		bottom_right_enlarge = np.dot(M_enlarge, np.array([[br_x],[br_y],[1]]))
+		cv2.rectangle(frame, tuple(top_left_enlarge.astype(int).flatten()),
+					 tuple(bottom_right_enlarge.astype(int).flatten()), (0,0,255),2)
 
 	filename = folder + str(img_seq) +".png"
 	cv2.imwrite(filename,frame)
@@ -20,7 +26,7 @@ def writeKP(frame, x, y, diameter, folder, img_seq):
 def checkOverlap(x1,y1,r1,x2,y2,r2):
 	####return true if overlaps > 50%
 	#### x1 y1 -> last frame keypoint
-	
+
 	dx = min(x1+r1, x2+r2) - max(x1-r1, x2-r2)
 	dy = min(y1+r1, y2+r2) - max(y1-r1, y2-r2)
 	if (dx>=0) and (dy>=0):
@@ -67,6 +73,16 @@ def kp_detect(frame, coordinatesList, hessian):
 	#print "-------------------"
 	return (total_kp, hessian)
 
+def shrink(frame, n):
+	####  Shrink image (both width and height) by n fold
+	rows, cols, ch = frame.shape
+	pts1 = np.float32([[0,0], [0,rows-1], [cols-1, 0]])
+	pts2 = np.float32([[0,0], [0,(rows-1)//n], [(cols-1)//n, 0]])
+	M_shrink = cv2.getAffineTransform(pts1, pts2)
+	M_enlarge = cv2.getAffineTransform(pts2, pts1)
+	frame_shrink = cv2. warpAffine(frame, M_shrink, (cols, rows))
+	return (frame_shrink, M_enlarge)
+
 #####input file name#####
 if len(sys.argv) != 2:
 	print "Usage: python a1.py <in_file>"
@@ -75,6 +91,9 @@ in_file=sys.argv[1]
 
 isGaussian = raw_input("Are you going to run gaussian variation analysis (y or n): ")
 isGaussian = True if isGaussian == 'y' else False
+
+isResize = raw_input("Are you going to resize image (y or n): ")
+isResize = True if isResize == 'y' else False
 
 #####read video information#####
 
@@ -88,55 +107,40 @@ total_frame_num = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
 #####processing video#####
 coordinatesList = []
 hessian = 5000
+ksize = 15 ### parameter for gaussian blur
+M_enlarge = np.array([0]) ### used for resizing attention window when frame size is shrinked
 
-if not isGaussian:
-	sum_sz = 0
-	large_sz = 0
-	for i in range (total_frame_num):
+sum_sz = 0 ### for calculating average attention window size
+large_sz = 0  ### for calculating maximum attention window size
+	
+for i in range (total_frame_num):
+	ret, frame = cap.read()
 
-		ret, frame = cap.read()
-		total_kp, hessian = kp_detect(frame, coordinatesList, hessian)
+	if not isGaussian:
+		if not isResize:
+			frame_kp = frame
+		else:
+			frame_kp, M_enlarge = shrink(frame, 2)
+	else:
+		frame_gaus = cv2.GaussianBlur(frame, (ksize, ksize), 0)
+		if not isResize:
+			frame_kp = frame_gaus
+		else:
+			frame_kp, M_enlarge = shrink(frame_gaus, 2)
 
-		#print "coordinate len: ",len(coordinates)
-		print "Frame#",i,",keypoint:", coordinatesList[-1]
-		#print total_kp
-		writeKP(frame, coordinatesList[-1][0], coordinatesList[-1][1], coordinatesList[-1][2], './result/',i)
-		sz = coordinatesList[-1][2]
-		sum_sz += sz
-		large_sz = sz if sz > large_sz else large_sz 
+	total_kp, hessian = kp_detect(frame_kp, coordinatesList, hessian)
 
-		if cv2.waitKey(10) & 0xFF == ord('q'):
-			break
-	print sum_sz/total_frame_num
-	print large_sz
-else:
-	avg_kp_size = []
-	largest_kp_size = []
-	for ksize in [15]:#range(3, 11, 2):#[11]: #
-		hessian = 5000
-		print 'ksize is %d' %ksize
-		isWriting = raw_input("Are you going to write images labeled with key points (y or n): ")
-		isWriting = True if isWriting == 'y' else False
-		sum_sz = 0 ### for calculating the average key point size
-		large_sz = 0 ### for calculating the largest key point size
+	print "Frame#",i,",keypoint:", coordinatesList[-1]
+	writeKP(frame, coordinatesList[-1][0], coordinatesList[-1][1], coordinatesList[-1][2], './result/', i, M_enlarge)
 
-		for i in range (total_frame_num):
-			ret, frame = cap.read()
-			frame_gaus = cv2.GaussianBlur(frame, (ksize, ksize), 0)
-			(total_kp, hessian) = kp_detect(frame_gaus, coordinatesList, hessian)
-			if isWriting:
-				print "Frame#",i,",keypoint:", coordinatesList[-1]
-				writeKP(frame, coordinatesList[-1][0], coordinatesList[-1][1], coordinatesList[-1][2], './result_var/',i)
-				print total_kp
-			sz = coordinatesList[-1][2]
-			sum_sz += sz
-			large_sz = sz if sz > large_sz else large_sz
+	sz = coordinatesList[-1][2] * 2 if isResize else coordinatesList[-1][2]
+	sum_sz += sz
+	large_sz = sz if sz > large_sz else large_sz 
 
-		avg_kp_size.append(sum_sz / total_frame_num)
-		largest_kp_size.append(large_sz)
-	print 'ksize: ', [range(3, ksize+1, 2)] 
-	print 'average', avg_kp_size
-	print 'largest', largest_kp_size
+print 'Gaussian Blur' if isGaussian else 'No Gaussian Blur'
+print 'Resize image' if isResize else 'No Resizing'
+print 'Average attention window size is: ', sum_sz/total_frame_num
+print 'Largest attention window size is: ', large_sz
 
 cap.release()
 cv2.destroyAllWindows()
