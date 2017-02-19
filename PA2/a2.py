@@ -109,6 +109,7 @@ coordinatesList = []
 hessian = 5000
 ksize = 15 ### parameter for gaussian blur
 M_enlarge = np.array([0]) ### used for resizing attention window when frame size is shrinked
+fold = 2 ### shrinking fold
 
 sum_sz = 0 ### for calculating average attention window size
 large_sz = 0  ### for calculating maximum attention window size
@@ -120,20 +121,20 @@ for i in range (total_frame_num):
 		if not isResize:
 			frame_kp = frame
 		else:
-			frame_kp, M_enlarge = shrink(frame, 2)
+			frame_kp, M_enlarge = shrink(frame, fold)
 	else:
 		frame_gaus = cv2.GaussianBlur(frame, (ksize, ksize), 0)
 		if not isResize:
 			frame_kp = frame_gaus
 		else:
-			frame_kp, M_enlarge = shrink(frame_gaus, 2)
+			frame_kp, M_enlarge = shrink(frame_gaus, fold)
 
 	total_kp, hessian = kp_detect(frame_kp, coordinatesList, hessian)
 
 	print "Frame#",i,",keypoint:", coordinatesList[-1]
 	writeKP(frame, coordinatesList[-1][0], coordinatesList[-1][1], coordinatesList[-1][2], './result/', i, M_enlarge)
 
-	sz = coordinatesList[-1][2] * 2 if isResize else coordinatesList[-1][2]
+	sz = coordinatesList[-1][2] * fold if isResize else coordinatesList[-1][2]
 	sum_sz += sz
 	large_sz = sz if sz > large_sz else large_sz 
 
