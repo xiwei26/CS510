@@ -15,12 +15,15 @@ if cap.isOpened() == False:
 total_frame_num = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
 
 ### Background substraction ###
-fgbg = cv2.BackgroundSubtractorMOG(3,4,0.8)
+fgbg = cv2.BackgroundSubtractorMOG()
 kernel = np.ones((5,5),np.uint8)
 
 for i in range(total_frame_num):
 	ret, frame = cap.read()
-	fgmask = fgbg.apply(frame)
+	if(i == 0):
+		fgmask = fgbg.apply(frame)
+	else:
+		fgbg.apply(frame, fgmask, -1)
 
 	closing = cv2.morphologyEx(fgmask, cv2.MORPH_CLOSE, kernel)
 	opening = cv2.morphologyEx(closing, cv2.MORPH_OPEN, kernel)
@@ -33,7 +36,6 @@ for i in range(total_frame_num):
 		if(w >= 20 and h >= 20):
 			cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0),2)
 	print i
-	print
 
 	filename = './result4/' + str(i) + '.png'
 	cv2.imwrite(filename,frame)
