@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import sys
+import scipy as sp
 
 ##### input file name #####
 if len(sys.argv) != 2:
@@ -24,3 +25,5 @@ for i in range(total_frame_num):
 	fgmask = fgbg.apply(frame)
 	filename = './result/' + str(i) + '.png'
 	cv2.imwrite(filename,fgmask)
+
+### Connected components ###
