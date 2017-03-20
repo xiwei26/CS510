@@ -12,11 +12,10 @@ cap = cv2.VideoCapture(in_file)
 if cap.isOpened() == False:
 	print("Can not open the video")
 	sys.exit()
-total_frame_num = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
+total_frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
 ### Background substraction ###
-fgbg = cv2.BackgroundSubtractorMOG()
-kernel = np.ones((5,5),np.uint8)
+fgbg = cv2.bgsegm.createBackgroundSubtractorMOG()
 
 for i in range(total_frame_num):
 	ret, frame = cap.read()
@@ -25,17 +24,21 @@ for i in range(total_frame_num):
 	else:
 		fgbg.apply(frame, fgmask, -1)
 
-	closing = cv2.morphologyEx(fgmask, cv2.MORPH_CLOSE, kernel)
-	opening = cv2.morphologyEx(closing, cv2.MORPH_OPEN, kernel)
-
-	ret, thresh = cv2.threshold(opening, 127, 255, 0)
-	contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-	### draw bounding rectangles ###
-	for a in contours:
-		x,y,w,h = cv2.boundingRect(a)
-		if(w >= 20 and h >= 20):
-			cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0),2)
+	output = cv2.connectedComponentsWithStats(fgmask, 8, cv2.CV_32S);
+	num_labels = output[0]
+	stats = output[2]
+	for j in range(num_labels):
+		x = stats[j, cv2.CC_STAT_LEFT]
+		y = stats[j, cv2.CC_STAT_TOP]
+		w = stats[j, cv2.CC_STAT_WIDTH]
+		h = stats[j, cv2.CC_STAT_HEIGHT]
+		area = stats[j, cv2.CC_STAT_AREA]
+		
+		if(w > 15 and w < 500):
+			if(h > 40):
+				cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0),2)
+				print w,h,area
 	print i
 
-	filename = './result4/' + str(i) + '.png'
+	filename = './result/' + str(i) + '.png'
 	cv2.imwrite(filename,frame)
