@@ -58,6 +58,7 @@ class MOSSE:
         x1, y1 = (x1+x2-w)//2, (y1+y2-h)//2
         self.pos = x, y = x1+0.5*(w-1), y1+0.5*(h-1)
         self.size = w, h
+        #self.good = 0
         img = cv2.getRectSubPix(frame, (w, h), (x, y))
 
         self.win = cv2.createHanningWindow((w, h), cv2.CV_32F)
@@ -77,11 +78,21 @@ class MOSSE:
         self.update_kernel()
         self.update(frame)
 
-    def update(self, frame, rate = 0.125):
-        (x, y), (w, h) = self.pos, self.size
+    def update(self, frame, rate = 0.25):
+        (x_ori, y_ori), (w, h) = self.pos, self.size
+        x,y = x_ori, y_ori
+        #best_x, best_y, best_dx, best_dy, best_psr = 0,0,0,0,0
+        #for y_iter in range(int(max(0, y_ori-h)), int(min(y_ori+h, frame.shape[0] - h + 1)), h//3):
+        #    for x_iter in range(int(max(0, x_ori-w)), int(min(x_ori+w, frame.shape[1] - w + 1)), w//3):
+        #        x, y = x_iter, y_iter
         self.last_img = img = cv2.getRectSubPix(frame, (w, h), (x, y))
         img = self.preprocess(img)
         self.last_resp, (dx, dy), self.psr = self.correlate(img)
+        '''        if self.psr > best_psr:
+                    best_x, best_y, best_dx, best_dy = x, y, dx, dy
+                    best_psr = self.psr'''
+        #self.psr = best_psr
+        #x, y, dx, dy = best_x, best_y, best_dx, best_dy
         self.good = self.psr > 8.0
         if not self.good:
             return
@@ -109,7 +120,7 @@ class MOSSE:
         vis = np.hstack([self.last_img, kernel, resp])
         return vis
 
-    def draw_state(self, vis):
+    def draw_state(self, vis, track_no = 0):
         (x, y), (w, h) = self.pos, self.size
         x1, y1, x2, y2 = int(x-0.5*w), int(y-0.5*h), int(x+0.5*w), int(y+0.5*h)
         cv2.rectangle(vis, (x1, y1), (x2, y2), (0, 0, 255))
@@ -118,7 +129,7 @@ class MOSSE:
         else:
             cv2.line(vis, (x1, y1), (x2, y2), (0, 0, 255))
             cv2.line(vis, (x2, y1), (x1, y2), (0, 0, 255))
-        draw_str(vis, (x1, y2+16), 'PSR: %.2f' % self.psr)
+        draw_str(vis, (x1, y2+16), '#%d PSR: %.2f' %(track_no,self.psr))
 
     def preprocess(self, img):
         img = np.log(np.float32(img)+1.0)
@@ -134,13 +145,18 @@ class MOSSE:
         cv2.rectangle(side_resp, (mx-5, my-5), (mx+5, my+5), 0, -1)
         smean, sstd = side_resp.mean(), side_resp.std()
         psr = (mval-smean) / (sstd+eps)
-        cv2.imwrite('resp.png', resp)
+        #cv2.imwrite('resp.png', resp)
         #print()
         return resp, (mx-w//2, my-h//2), psr
 
     def update_kernel(self):
         self.H = divSpec(self.H1, self.H2)
         self.H[...,1] *= -1
+
+    def getRect(self):
+        (x,y), (w,h) = self.pos, self.size
+        x1, y1, x2, y2 = int(x-0.5*w), int(y-0.5*h), int(x+0.5*w), int(y+0.5*h)
+        return x1,y1,x2,y2
 
 
 if __name__ == '__main__':
@@ -159,57 +175,3 @@ if __name__ == '__main__':
         tracker.draw_state(target)
         cv2.imwrite('./tracking/t_'+str(i)+'_ori.png', target)
         print(i)
-'''
-class App:
-    def __init__(self, video_src, paused = False):
-        self.cap = video.create_capture(video_src)
-        _, self.frame = self.cap.read()
-        cv2.imshow('frame', self.frame)
-        self.rect_sel = RectSelector('frame', self.onrect)
-        self.trackers = []
-        self.paused = paused
-
-    def onrect(self, rect):
-        frame_gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
-        tracker = MOSSE(frame_gray, rect)
-        self.trackers.append(tracker)
-
-    def run(self):
-        while True:
-            if not self.paused:
-                ret, self.frame = self.cap.read()
-                if not ret:
-                    break
-                frame_gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
-                for tracker in self.trackers:
-                    tracker.update(frame_gray)
-
-            vis = self.frame.copy()
-            for tracker in self.trackers:
-                tracker.draw_state(vis)
-            if len(self.trackers) > 0:
-                cv2.imshow('tracker state', self.trackers[-1].state_vis)
-            self.rect_sel.draw(vis)
-
-            cv2.imshow('frame', vis)
-            ch = cv2.waitKey(10)
-            if ch == 27:
-                break
-            if ch == ord(' '):
-                self.paused = not self.paused
-            if ch == ord('c'):
-                self.trackers = []
-'''
-'''
-if __name__ == '__main__':
-    print (__doc__)
-    import sys, getopt
-    opts, args = getopt.getopt(sys.argv[1:], '', ['pause'])
-    opts = dict(opts)
-    try:
-        video_src = args[0]
-    except:
-        video_src = '0'
-
-    App(video_src, paused = '--pause' in opts).run()
-'''
