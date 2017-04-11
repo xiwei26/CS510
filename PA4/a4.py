@@ -9,47 +9,37 @@ from scipy.misc import imread, imresize
 from imagenet_classes import class_names
 from vgg16 import vgg16
 
+
+'''
+1. resizeImg() takes the frame and the feature window, producing a 224*224 image; if the input feature window is a rectangle,
+	this function only takes the center part of the image
+
+2. Put a4.py in the vgg folder 
+'''
+
 def resizeImg(frame, center_x, center_y, width, height):
+	### take the center square if input is a rectangle ###
+	if width > height:
+		width = height 
+	if height > width:
+		height = width 
+
 	tl_x=int(center_x-(width/2)) #topleft_x
 	tl_y=int(center_y-(height/2)) #topleft_y
-	#br_x=int(x+(diameter/2)) #bottomright_x
-	#br_y=int(y+(diameter/2)) #bottomright_y
 
+	### affine transformation ###
 	pts1 = np.float32([[tl_x, tl_y], [tl_x, tl_y + height], [tl_x + width, tl_y]])
-	if width > height:
-		pts2 = np.float32([[0, 0], [0, 223],[int(224/height * width) - 1, 0]])
-		output_ht = 224
-		output_wd = int(224/height * width)
-	else:
-		pts2 = np.float32([[0, 0], [0, int(224/width * height) - 1],[223, 0]])
-		output_ht = int(224/width * height)
-		output_wd = 224
-
+	pts2 = np.float32([[0, 0], [0, 223],[223, 0]])
 	M = cv2.getAffineTransform(pts1,pts2)
-	dst = cv2.warpAffine(frame, M, (output_wd,output_ht))
-	return dst
 
-def writeKP(frame, x, y, diameter, folder, img_seq, M_enlarge):
-	#### Write figures with key points labels to files ####
-
-	#### Box coordinates ####
-	tl_x=int(x-(diameter/2))
-	tl_y=int(y-(diameter/2))
-	br_x=int(x+(diameter/2))
-	br_y=int(y+(diameter/2))
-
-	if M_enlarge.size == 1:
-		cv2.rectangle(frame, (tl_x, tl_y), (br_x, br_y), (0,0,255),2)
-	else:
-		top_left_enlarge = np.dot(M_enlarge, np.array([[tl_x],[tl_y],[1]]))
-		bottom_right_enlarge = np.dot(M_enlarge, np.array([[br_x],[br_y],[1]]))
-		cv2.rectangle(frame, tuple(top_left_enlarge.astype(int).flatten()),
-					 tuple(bottom_right_enlarge.astype(int).flatten()), (0,0,255),2)
-
-	filename = folder + str(img_seq) +".png"
-	cv2.imwrite(filename,frame)
+	output_ht = 224
+	output_wd = 224
+	return cv2.warpAffine(frame, M, (output_wd,output_ht))
 
 def checkOverlap(x1,y1,r1,x2,y2,r2):
+	'''
+	Function copied from PA2
+	'''
 	####return true if overlaps > 50%
 	#### x1 y1 -> last frame keypoint
 
@@ -66,6 +56,9 @@ def checkOverlap(x1,y1,r1,x2,y2,r2):
 		return False
 
 def kp_detect(frame, coordinatesList, hessian):
+	'''
+	Function copied from PA2
+	'''
 	gray = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
 
 	#If there are less than 30 key points, lower hessian value and try again
@@ -101,6 +94,9 @@ def kp_detect(frame, coordinatesList, hessian):
 	return (total_kp, hessian)
 
 def shrink(frame, n):
+	'''
+	Function copied from PA2
+	'''
 	####  Shrink image (both width and height) by n fold
 	rows, cols, ch = frame.shape
 	pts1 = np.float32([[0,0], [0,rows-1], [cols-1, 0]])
@@ -118,7 +114,7 @@ in_file=sys.argv[1]
 
 #isGaussian = raw_input("Are you going to run gaussian variation analysis (y or n): ")
 #isGaussian = True if isGaussian == 'y' else False
-isGaussian = False
+isGaussian = True
 
 #isResize = raw_input("Are you going to resize image (y or n): ")
 #isResize = True if isResize == 'y' else False
@@ -131,8 +127,8 @@ if cap.isOpened()==False:
 	print("Can not open the video")
 	sys.exit()
 
-#total_frame_num = int(cap.get(cv2.CV_CAP_PROP_FRAME_COUNT))
-total_frame_num = 10
+total_frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+#total_frame_num = 50
 #####processing video#####
 coordinatesList = []
 hessian = 5000
@@ -140,13 +136,19 @@ ksize = 15 ### parameter for gaussian blur
 M_enlarge = np.array([0]) ### used for resizing attention window when frame size is shrinked
 fold = 2 ### shrinking fold
 
-sum_sz = 0 ### for calculating average attention window size
-large_sz = 0  ### for calculating maximum attention window size
-	
-image_stack = None
+#sum_sz = 0 ### for calculating average attention window size
+#large_sz = 0  ### for calculating maximum attention window size
+
+### vgg object, copied from vgg16.py ###
+sess = tf.Session()
+images = tf.placeholder(tf.float32, [None, 224, 224, 3])
+vgg = vgg16(images, 'vgg16_weights.npz', sess)
+
+#image_stack = None
 for i in range (total_frame_num):
 	ret, frame = cap.read()
 
+	### Process static objects/features ###
 	if not isGaussian:
 		if not isResize:
 			frame_kp = frame
@@ -161,18 +163,14 @@ for i in range (total_frame_num):
 
 	total_kp, hessian = kp_detect(frame_kp, coordinatesList, hessian)
 	img_tmp = resizeImg(frame, coordinatesList[-1][0], coordinatesList[-1][1], coordinatesList[-1][2], coordinatesList[-1][2])
-	image_stack = [img_tmp] if image_stack == None else np.append(image_stack, [img_tmp], axis = 0)
+	image_stack = [img_tmp] #if image_stack == None else np.append(image_stack, [img_tmp], axis = 0)
+	cv2.imwrite('./result/' + str(i) + '.jpg', img_tmp)
 
-sess = tf.Session()
-images = tf.placeholder(tf.float32, [None, 224, 224, 3])
-vgg = vgg16(images, 'vgg16_weights.npz', sess)
-
-probs = sess.run(vgg.probs, feed_dict={vgg.imgs: image_stack})
-
-preds = np.argmax(probs, axis=1)
-
-for index, p in enumerate(preds):
-    print("Prediction: %s; Probability: %f"%(class_names[p], probs[index, p]))
+	### Predict object class ###
+	probs = sess.run(vgg.probs, feed_dict={vgg.imgs: image_stack})
+	preds = np.argmax(probs, axis=1)
+	for index, p in enumerate(preds):
+	    print("Prediction #%d: %s; Probability: %f"%(i, class_names[p], probs[index, p]))
 
 
 	#print "Frame#",i,",keypoint:", coordinatesList[-1]
