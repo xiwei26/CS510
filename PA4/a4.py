@@ -178,8 +178,8 @@ if cap.isOpened()==False:
 	print("Can not open the video")
 	sys.exit()
 
-total_frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-#total_frame_num = 50
+#total_frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+total_frame_num = 20
 #####processing video#####
 coordinatesList = []
 hessian = 5000
@@ -244,6 +244,17 @@ for i in range (total_frame_num):
 			if not check_overlap(obj,tracking_objects):
 				new_tracker = mosse.MOSSE(gray_frame, obj)
 					#new_tracker.draw_state(gray_frame)
+				x1,y1,x2,y2 = new_tracker.getRect()
+				center_x=(x1+x2)/2
+				center_y=(y1+y2)/2
+				height=y2-y1
+				width=x2-x1
+				img_temp2=resizeImg(frame, center_x, center_y, width, height)
+				image_stack2 = [img_temp2] 
+				probs = sess.run(vgg.probs, feed_dict={vgg.imgs: image_stack2})
+				preds = np.argmax(probs, axis=1)
+				for index, p in enumerate(preds):
+					print("Prediction #%d: %s; Probability: %f"%(i, class_names[p], probs[index, p]))
 				new_tracker.draw_state(frame, (track_no+1))
 				trackers.append(new_tracker)
 				tracking_objects.append([(i, obj, new_tracker.psr)])
