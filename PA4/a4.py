@@ -166,22 +166,13 @@ def write_result(still_obj, tracking_objects):
 
 	### find 5 best still objects ###
 	if len(still_obj) > 5:
-		best_still_index = [0,1,2,3,4]
-		p_thresh_index = 0 #used to find the index with lowest probability in the best 5 objects
-		for i in range(5,len(still_obj)):
-
-			#find the lowest probability and the index in the best 5 objects
-			p_thresh = still_obj[best_still_index[0]][5]
-			for j in range(5): 
-				if p_thresh > still_obj[best_still_index[j]][5]:
-					p_thresh = still_obj[best_still_index[j]][5]
-					p_thresh_index = j
-			#update to find the best 5 objects
-			if still_obj[i][5] > p_thresh:
-				best_still_index[p_thresh_index] = i
-
+		act_levls = [still_obj[i][5] for i in range(len(still_obj))]
+		best_still_index = sorted(range(len(act_levls)), key=lambda k: act_levls[k])[-5:]
+	else:
+		best_still_index = range(len(still_obj))
+	
 	# Write still objects
-	for j in range(5):
+	for j in range(len(best_still_index)):
 		f.write('Still')
 		s_obj =  still_obj[best_still_index[j]]
 		for ele in s_obj:
@@ -227,8 +218,8 @@ if cap.isOpened()==False:
 	print("Can not open the video")
 	sys.exit()
 
-#total_frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-total_frame_num = 20
+total_frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+#total_frame_num = 20
 #####processing video#####
 coordinatesList = []
 hessian = 5000
@@ -326,7 +317,7 @@ for i in range (total_frame_num):
 					#print("Prediction #%d: %s; Probability: %f"%(i, class_names[p], probs[index, p]))
 					tracking_objects[j].append((i,(x1,y1,x2,y2), #frame#, obj_coordinate
 												class_names[p])) #object_label
-				#trackers[j].draw_state(gray_frame)
+				trackers[j].draw_state(gray_frame)
 
 		## next add newly identified objects
 		for obj in moving_objects:
@@ -349,8 +340,9 @@ for i in range (total_frame_num):
 				for index, p in enumerate(preds):
 					#print("Prediction #%d: %s; Probability: %f"%(i, class_names[p], probs[index, p]))
 					tracking_objects.append([(i, obj, class_names[p])])
-#				new_tracker.draw_state(frame, (track_no+1))
-	print('-----Frame %d Done' %i)
+				new_tracker.draw_state(frame, (track_no+1))
+	cv2.imwrite('./result/' + str(i) + '_moving.jpg', frame)
+	print('---Frame %d Done' %i)
 
 write_result(still_obj, tracking_objects)
 #print(still_obj)					
