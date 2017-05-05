@@ -11,6 +11,8 @@ from scipy.misc import imread, imresize
 from imagenet_classes import class_names
 from vgg16 import vgg16
 
+from collections import Counter
+
 
 '''
 1. resizeImg() takes the frame and the feature window, producing a 224*224 image; if the input feature window is a rectangle,
@@ -197,6 +199,14 @@ def write_result(still_obj, tracking_objects):
 	f.close()
 	print('Writing Completed')
 
+def most_frequent_class(target):
+	classes = []
+	for ea_fm in target:
+		classes.append(ea_fm[2])
+	count = Counter(classes)
+	nm = count.most_common()[0][0]
+	return nm.split(',')[0].lower()
+
 #####input file name#####
 if len(sys.argv) != 2:
 	print("Usage: python a1.py <in_file>")
@@ -218,8 +228,8 @@ if cap.isOpened()==False:
 	print("Can not open the video")
 	sys.exit()
 
-total_frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-#total_frame_num = 20
+#total_frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+total_frame_num = 20
 #####processing video#####
 coordinatesList = []
 hessian = 5000
@@ -312,7 +322,7 @@ for i in range (total_frame_num):
 					tracking_objects.append([(i, obj, class_names[p])])
 					tracking_objects_NoFrame.append(1)
 				new_tracker.draw_state(frame, (track_no+1))
-	cv2.imwrite('./moving/' + str(i) + '_moving.jpg', frame)
+	#cv2.imwrite('./moving/' + str(i) + '_moving.jpg', frame)
 	print('---Frame %d Done' %i)
 
 #write_result(still_obj, tracking_objects)
@@ -323,14 +333,22 @@ for i in range (total_frame_num):
 ####### Summarize result  ###############
 sorted_ind = np.argsort(tracking_objects_NoFrame)[::-1]
 targets = []
+names = []
 for i in range(4):
 	targets.append(tracking_objects[sorted_ind[i]])
-	one_moving_object(targets[i])
+	names.append(most_frequent_class(targets[i]))
+	one_moving_object(targets[i], names[i])
 
 for i in range(4):
 	for j in range(i+1, 4):
-		two_moving_object(targets[i],targets[j])
+		start = max(targets[i][0][0], targets[j][0][0])
+		end = min(targets[i][-1][0], targets[j][-1][0])
+		two_moving_object(targets[i], names[i], targets[j], names[j], start, end)
+		#print(targets[i][0], targets[j][0], start)
+		#print(targets[i][-1], targets[j][-1], end)
 
+#for x in names:
+#	print(x)
 #for x in targets:
 #	print(x)
 
