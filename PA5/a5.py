@@ -24,7 +24,7 @@ from collections import Counter
 '''
 
 def one_moving_object(obj,name):
-	f = open('./result.txt', 'a')
+	f = open('./result_one.txt', 'a')
 	increment=0
 	print(len(obj))
 
