@@ -33,7 +33,7 @@ def one_moving_object(obj,name):
 		first=0
 		second=increment
 		third=second+increment
-		fourth=len(obj)-1
+		fourth=len(obj)-2
 		collection=[first,second,third,fourth]
 		for i in collection:
 			time=math.ceil(obj[i][0]/30)+1
@@ -59,7 +59,7 @@ def one_moving_object(obj,name):
 				f.write("A "+name+" is moving towards north at "+str(time)+"seconds. ")
 	else:
 		for i in range(len(obj)-1):
-			time=math.ceil(obj[i+1][0]/30)+1
+			time=math.ceil(obj[i][0]/30)+1
 			print("here0")
 			x_tl, y_tl, x_br, y_br = obj[i][1]
 			center_x1=(x_br+x_tl)/2
