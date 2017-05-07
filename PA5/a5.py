@@ -5,6 +5,7 @@ import os
 import mosse
 import common
 import math
+
 import tensorflow as tf
 import numpy as np
 from scipy.misc import imread, imresize
@@ -22,23 +23,22 @@ from collections import Counter
 4. Each tracking (not each object) is one result line in the final result
 '''
 
-
-
-
 def one_moving_object(obj,name):
 	f = open('./result.txt', 'a')
 	increment=0
 	print(len(obj))
 
 	if(len(obj)>4):
-		increment =math.floor(len(obj)/4)
+		increment =int(math.floor((len(obj)/4)))
+		print("increment "+str(increment))
 		first=0
 		second=increment
 		third=second+increment
-		fourth=len(obj)-1
+		fourth=len(obj)-2
 		collection=[first,second,third,fourth]
 		for i in collection:
-			time=math.ceil(obj[i+increment][0]/30)+1
+			print("frame: "+str(obj[i][0]))
+			time=math.ceil(obj[i][0]/30)+1
 			x_tl, y_tl, x_br, y_br = obj[i][1]
 			center_x1=(x_br+x_tl)/2
 			center_y1=(y_br+y_tl)/2
@@ -61,8 +61,8 @@ def one_moving_object(obj,name):
 				f.write("A "+name+" is moving towards north at "+str(time)+"seconds. ")
 	else:
 		for i in range(len(obj)-1):
+			print("frame: "+str(obj[i][0]))
 			time=math.ceil(obj[i+1][0]/30)+1
-			print("here0")
 			x_tl, y_tl, x_br, y_br = obj[i][1]
 			center_x1=(x_br+x_tl)/2
 			center_y1=(y_br+y_tl)/2
@@ -87,6 +87,61 @@ def one_moving_object(obj,name):
 	f.close()
 	print('Writing Completed')
 
+
+
+def two_moving_object(tracker1, name1, tracker2, name2):
+	f = open('./result_two.txt', 'w')
+	sentence = ""
+	verb = ""
+	time = 0
+	distance = 0
+	common_frames = []
+	for i in range(len(tracker1)):
+		for j in range(len(tracker2)):
+			if(tracker1[i][0] == tracker2[j][0]):
+				common_frames.append((i,j))
+
+	print common_frames
+	for i in range(len(common_frames)):
+		if(i == 0 or i == len(common_frames)-1 or 
+			i == math.floor(len(common_frames)/4) or 
+			i == math.floor(len(common_frames)/4*3)):
+			sentence = ""
+			print i
+			index1 = common_frames[i][0]
+			index2 = common_frames[i][1]
+			time = math.ceil(tracker1[index1][0]/30)+1
+
+			# convert coordinates to center point for object1
+			x1_tl,y1_tl,x1_br,y1_br = tracker1[index1][1]
+			x1 = (x1_tl + x1_br)/2
+			y1 = (y1_tl + y1_br)/2
+		
+			# convert coordinates to center point for object2
+			x2_tl,y2_tl,x2_br,y2_br = tracker2[index2][1]
+			x2 = (x2_tl + x2_br)/2
+			y2 = (y2_tl + y2_br)/2
+		
+			# compute distance and determine their relatvie position
+			new_distance = math.sqrt((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1))
+
+			# generate sentence
+			if(new_distance < distance):
+				verb = " moved toward "
+			elif(new_distance > distance):
+				verb = " moved away from "
+		
+			# generate sentece for each frame
+			sentence += name1 + verb + name2 + " at " + str(time) + " second."
+			sentence += "\n"
+			f.write(sentence)
+
+			# update distance
+			distance = new_distance
+
+	f.write("\n")
+	f.close()
+	print('Writing Completed')	
 
 
 def check_overlap_moving(obj, t_objs):
@@ -296,8 +351,8 @@ if cap.isOpened()==False:
 	print("Can not open the video")
 	sys.exit()
 
-#total_frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-total_frame_num = 20
+total_frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+# total_frame_num = 100
 #####processing video#####
 coordinatesList = []
 hessian = 5000
@@ -407,14 +462,12 @@ for i in range(4):
 	names.append(most_frequent_class(targets[i]))
 	one_moving_object(targets[i], names[i])
 
-#for i in range(4):
-#	for j in range(i+1, 4):
-#		start = max(targets[i][0][0], targets[j][0][0])
-#		end = min(targets[i][-1][0], targets[j][-1][0])
-#		two_moving_object(targets[i], names[i], targets[j], names[j], start, end)
-		#print(targets[i][0], targets[j][0], start)
-		#print(targets[i][-1], targets[j][-1], end)
+obj_list = []
+for i in range(4):
+	if(len(targets[i]) > 100):
+		obj_list.append(i)
 
+two_moving_object(targets[obj_list[0]],names[obj_list[0]],targets[obj_list[1]],names[obj_list[1]])
 #for x in names:
 #	print(x)
 #for x in targets:
